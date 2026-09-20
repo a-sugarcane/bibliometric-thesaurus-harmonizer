@@ -1,0 +1,86 @@
+{
+  "prostatic neoplasms": {
+    "descriptor_id": "D011471",
+    "canonical_name": "Prostatic Neoplasms"
+  },
+  "prostate neoplasms": {
+    "descriptor_id": "D011471",
+    "canonical_name": "Prostatic Neoplasms"
+  },
+  "prostate cancer": {
+    "descriptor_id": "D011471",
+    "canonical_name": "Prostatic Neoplasms"
+  },
+  "prostate cancers": {
+    "descriptor_id": "D011471",
+    "canonical_name": "Prostatic Neoplasms"
+  },
+  "cancer of prostate": {
+    "descriptor_id": "D011471",
+    "canonical_name": "Prostatic Neoplasms"
+  },
+  "cancer of the prostate": {
+    "descriptor_id": "D011471",
+    "canonical_name": "Prostatic Neoplasms"
+  },
+  "androgen antagonists": {
+    "descriptor_id": "D000726",
+    "canonical_name": "Androgen Antagonists"
+  },
+  "androgen deprivation therapy": {
+    "descriptor_id": "D000726",
+    "canonical_name": "Androgen Antagonists"
+  },
+  "androgen suppression therapy": {
+    "descriptor_id": "D000726",
+    "canonical_name": "Androgen Antagonists"
+  },
+  "adt": {
+    "descriptor_id": "D000726",
+    "canonical_name": "Androgen Antagonists"
+  },
+  "depressive disorder": {
+    "descriptor_id": "D003866",
+    "canonical_name": "Depressive Disorder"
+  },
+  "depression": {
+    "descriptor_id": "D003863",
+    "canonical_name": "Depression"
+  },
+  "depressive symptoms": {
+    "descriptor_id": "D003863",
+    "canonical_name": "Depression"
+  },
+  "emotional depression": {
+    "descriptor_id": "D003863",
+    "canonical_name": "Depression"
+  },
+  "major depressive disorder": {
+    "descriptor_id": "D003865",
+    "canonical_name": "Depressive Disorder, Major"
+  },
+  "quality of life": {
+    "descriptor_id": "D011788",
+    "canonical_name": "Quality of Life"
+  },
+  "life quality": {
+    "descriptor_id": "D011788",
+    "canonical_name": "Quality of Life"
+  },
+  "hrqol": {
+    "descriptor_id": "D011788",
+    "canonical_name": "Quality of Life"
+  },
+  "anxiety": {
+    "descriptor_id": "D001007",
+    "canonical_name": "Anxiety"
+  },
+  "anxieties": {
+    "descriptor_id": "D001007",
+    "canonical_name": "Anxiety"
+  },
+  "anxiety disorders": {
+    "descriptor_id": "D001008",
+    "canonical_name": "Anxiety Disorders"
+  }
+}
