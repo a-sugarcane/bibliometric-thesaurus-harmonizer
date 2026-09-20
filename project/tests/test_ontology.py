@@ -16,8 +16,8 @@ class TestOntology(unittest.TestCase):
         self.assertEqual(res1.descriptor_id, "D011471")
         self.assertEqual(res1.canonical_name, "Prostatic Neoplasms")
 
-        # Query Acronym
-        res2 = lookup.lookup("adt")
+        # Query Official Descriptor / Entry Term
+        res2 = lookup.lookup("androgen antagonists")
         self.assertTrue(res2.matched)
         self.assertEqual(res2.descriptor_id, "D000726")
 

@@ -1,5 +1,6 @@
 """NLM MeSH XML compiler for building fast offline inverted index JSON."""
 
+import gzip
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -8,14 +9,14 @@ from config import MESH_INDEX_FILE
 
 
 class MeSHCompiler:
-    """Pre-compiles NLM MeSH Descriptors XML (e.g. desc2026.xml) into lightweight JSON."""
+    """Pre-compiles NLM MeSH Descriptors XML (e.g. desc2026.xml or desc2026.gz) into lightweight JSON."""
 
     @staticmethod
     def compile_xml_to_json(xml_path: Path | str, output_json_path: Optional[Path | str] = None) -> Path:
-        """Parse NLM MeSH XML using memory-efficient iterative parsing (iterparse).
+        """Parse NLM MeSH XML/GZ using memory-efficient iterative parsing (iterparse).
 
         Args:
-            xml_path: Path to raw MeSH XML file (desc202X.xml).
+            xml_path: Path to raw MeSH XML or GZ file (desc202X.xml or desc202X.gz).
             output_json_path: Path to output JSON file.
 
         Returns:
@@ -27,33 +28,40 @@ class MeSHCompiler:
 
         mesh_dict: Dict[str, Dict[str, str]] = {}
 
-        # Stream parse to keep memory low (<100MB RAM even for 400MB XML)
-        context = ET.iterparse(in_path, events=("end",))
-        for event, elem in context:
-            if elem.tag == "DescriptorRecord":
-                ui_elem = elem.find("DescriptorUI")
-                name_elem = elem.find("DescriptorName/String")
+        # Transparently support both .gz and plain .xml
+        is_gz = in_path.name.lower().endswith(".gz")
+        source = gzip.open(in_path, "rb") if is_gz else open(in_path, "rb")
 
-                if ui_elem is not None and name_elem is not None and ui_elem.text and name_elem.text:
-                    descriptor_ui = ui_elem.text.strip()
-                    descriptor_name = name_elem.text.strip()
+        try:
+            # Stream parse to keep memory low (<100MB RAM even for 400MB XML)
+            context = ET.iterparse(source, events=("end",))
+            for event, elem in context:
+                if elem.tag == "DescriptorRecord":
+                    ui_elem = elem.find("DescriptorUI")
+                    name_elem = elem.find("DescriptorName/String")
 
-                    entry_payload = {
-                        "descriptor_id": descriptor_ui,
-                        "canonical_name": descriptor_name,
-                    }
+                    if ui_elem is not None and name_elem is not None and ui_elem.text and name_elem.text:
+                        descriptor_ui = ui_elem.text.strip()
+                        descriptor_name = name_elem.text.strip()
 
-                    # Index canonical name itself
-                    mesh_dict[descriptor_name.lower()] = entry_payload
+                        entry_payload = {
+                            "descriptor_id": descriptor_ui,
+                            "canonical_name": descriptor_name,
+                        }
 
-                    # Extract all EntryTerm strings
-                    for term_elem in elem.findall(".//Term/String"):
-                        if term_elem.text:
-                            term_text = term_elem.text.strip().lower()
-                            mesh_dict[term_text] = entry_payload
+                        # Index canonical name itself
+                        mesh_dict[descriptor_name.lower()] = entry_payload
 
-                # Clear element to free memory
-                elem.clear()
+                        # Extract all EntryTerm strings
+                        for term_elem in elem.findall(".//Term/String"):
+                            if term_elem.text:
+                                term_text = term_elem.text.strip().lower()
+                                mesh_dict[term_text] = entry_payload
+
+                    # Clear element to free memory
+                    elem.clear()
+        finally:
+            source.close()
 
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(mesh_dict, f, ensure_ascii=False, indent=2)

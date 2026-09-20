@@ -47,3 +47,5 @@ ENV/
 *.log
 mesh_cache/
 soft_cert_*.txt
+project/resources/mesh_raw/*.gz
+project/resources/mesh_raw/*.xml
