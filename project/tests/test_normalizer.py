@@ -19,6 +19,23 @@ class TestNormalizer(unittest.TestCase):
         self.assertEqual(res2.acronym, "QoL")
         self.assertTrue(res2.is_acronym_valid)
 
+        # Biomedical prefix tolerance: mCRPC
+        res3 = SyntaxCleaner.decouple_parentheses("metastatic castration-resistant prostate cancer (mCRPC)")
+        self.assertEqual(res3.full_phrase, "metastatic castration-resistant prostate cancer")
+        self.assertEqual(res3.acronym, "mCRPC")
+        self.assertTrue(res3.is_acronym_valid)
+
+        # Descriptive qualifiers MUST NOT be stripped or treated as acronyms
+        res4 = SyntaxCleaner.decouple_parentheses("depression (geriatric)")
+        self.assertEqual(res4.full_phrase, "depression (geriatric)")
+        self.assertFalse(res4.is_acronym_valid)
+
+        # Short non-acronym qualifiers (e.g. mild) MUST NOT be treated as acronyms
+        res5 = SyntaxCleaner.decouple_parentheses("depression (mild)")
+        self.assertEqual(res5.full_phrase, "depression (mild)")
+        self.assertFalse(res5.is_acronym_valid)
+
+
     def test_head_noun_lemmatizer(self):
         lem = HeadNounLemmatizer()
 
