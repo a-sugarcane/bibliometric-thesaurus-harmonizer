@@ -42,11 +42,12 @@ class MeSHLookup:
 
         with open(path, "r", encoding="utf-8") as f:
             self._index: Dict[str, Dict[str, str]] = json.load(f)
+        self._all_terms_set: Set[str] = set(self._index.keys())
 
     @property
     def all_indexed_terms(self) -> Set[str]:
         """Return all indexed term strings for fast set-membership checks."""
-        return set(self._index.keys())
+        return self._all_terms_set
 
     def lookup(self, term: str) -> MeSHMatchResult:
         """Query term in MeSH inverted index.
