@@ -13,6 +13,11 @@ class DocumentRecord:
 
     doc_id: str
     keywords: Set[str] = field(default_factory=set)
+    author_keywords_de: Set[str] = field(default_factory=set)
+    keywords_plus_id: Set[str] = field(default_factory=set)
+    effective_keywords: Set[str] = field(default_factory=set)
+    is_de_fallback: bool = False
+    combined_keywords: Set[str] = field(default_factory=set)
     source_database: str = "Unknown"
 
 

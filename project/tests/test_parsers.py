@@ -37,6 +37,33 @@ class TestParsers(unittest.TestCase):
         # Even though "prostate cancer" appeared twice in DE, document-level count must be exactly 1
         self.assertEqual(freqs["prostate cancer"], 1)
 
+    def test_wos_parser_de_fallback(self):
+        sample_data = (
+            "PT J\n"
+            "UT WOS:0001\n"
+            "DE prostate cancer; depression\n"
+            "ID quality of life\n"
+            "ER\n"
+            "PT J\n"
+            "UT WOS:0002\n"
+            "ID castration-resistant prostate cancer; docetaxel\n"
+            "ER\n"
+        )
+        parser = WoSParser()
+        records = parser.parse_string(sample_data)
+        self.assertEqual(len(records), 2)
+        # Record 1 has DE
+        self.assertFalse(records[0].is_de_fallback)
+        self.assertIn("prostate cancer", records[0].effective_keywords)
+        self.assertIn("depression", records[0].author_keywords_de)
+        self.assertIn("quality of life", records[0].keywords_plus_id)
+        # Record 2 has empty DE -> fallback to ID
+        self.assertTrue(records[1].is_de_fallback)
+        self.assertEqual(len(records[1].author_keywords_de), 0)
+        self.assertIn("castration-resistant prostate cancer", records[1].effective_keywords)
+        self.assertIn("docetaxel", records[1].effective_keywords)
+
+
     def test_pubmed_parser_and_subheading_clean(self):
         sample_pm = (
             "PMID- 99887766\n"
