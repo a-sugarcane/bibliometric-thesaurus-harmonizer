@@ -44,19 +44,31 @@ class MeSHCompiler:
                         descriptor_ui = ui_elem.text.strip()
                         descriptor_name = name_elem.text.strip()
 
-                        entry_payload = {
-                            "descriptor_id": descriptor_ui,
-                            "canonical_name": descriptor_name,
-                        }
+                        # Parse Concepts under this Descriptor
+                        for concept in elem.findall(".//Concept"):
+                            c_ui_elem = concept.find("ConceptUI")
+                            c_name_elem = concept.find("ConceptName/String")
+                            c_ui = c_ui_elem.text.strip() if c_ui_elem is not None and c_ui_elem.text else descriptor_ui
+                            c_name = c_name_elem.text.strip() if c_name_elem is not None and c_name_elem.text else descriptor_name
 
-                        # Index canonical name itself
-                        mesh_dict[descriptor_name.lower()] = entry_payload
+                            # Extract all Terms under this Concept
+                            for term_elem in concept.findall(".//Term/String"):
+                                if term_elem.text:
+                                    t_text = term_elem.text.strip().lower()
+                                    mesh_dict[t_text] = {
+                                        "descriptor_id": descriptor_ui,
+                                        "concept_id": c_ui,
+                                        "canonical_name": descriptor_name,
+                                        "concept_name": c_name,
+                                    }
 
-                        # Extract all EntryTerm strings
-                        for term_elem in elem.findall(".//Term/String"):
-                            if term_elem.text:
-                                term_text = term_elem.text.strip().lower()
-                                mesh_dict[term_text] = entry_payload
+                        # Ensure descriptor canonical name itself is indexed
+                        if descriptor_name.lower() not in mesh_dict:
+                            mesh_dict[descriptor_name.lower()] = {
+                                "descriptor_id": descriptor_ui,
+                                "concept_id": descriptor_ui,
+                                "canonical_name": descriptor_name,
+                            }
 
                     # Clear element to free memory
                     elem.clear()
@@ -72,41 +84,50 @@ class MeSHCompiler:
     def generate_seed_index(output_json_path: Optional[Path | str] = None) -> Path:
         """Create a curated seed MeSH index for rapid offline bootstrapping and tests.
 
-        Includes essential concepts for oncology, urology, psychology, and psychiatry.
+        Includes essential concepts for oncology, urology, psychology, and psychiatry with concept_id.
         """
         out_path = Path(output_json_path) if output_json_path else MESH_INDEX_FILE
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
         seed_data: Dict[str, Dict[str, str]] = {
-            # Prostate Cancer
-            "prostatic neoplasms": {"descriptor_id": "D011471", "canonical_name": "Prostatic Neoplasms"},
-            "prostate neoplasms": {"descriptor_id": "D011471", "canonical_name": "Prostatic Neoplasms"},
-            "prostate cancer": {"descriptor_id": "D011471", "canonical_name": "Prostatic Neoplasms"},
-            "prostate cancers": {"descriptor_id": "D011471", "canonical_name": "Prostatic Neoplasms"},
-            "cancer of prostate": {"descriptor_id": "D011471", "canonical_name": "Prostatic Neoplasms"},
-            "cancer of the prostate": {"descriptor_id": "D011471", "canonical_name": "Prostatic Neoplasms"},
+            # Prostate Cancer (Descriptor D011471, Concept M0017849)
+            "prostatic neoplasms": {"descriptor_id": "D011471", "concept_id": "M0017849", "canonical_name": "Prostatic Neoplasms"},
+            "prostate neoplasms": {"descriptor_id": "D011471", "concept_id": "M0017849", "canonical_name": "Prostatic Neoplasms"},
+            "prostate cancer": {"descriptor_id": "D011471", "concept_id": "M0017849", "canonical_name": "Prostatic Neoplasms"},
+            "prostate cancers": {"descriptor_id": "D011471", "concept_id": "M0017849", "canonical_name": "Prostatic Neoplasms"},
+            "cancer of prostate": {"descriptor_id": "D011471", "concept_id": "M0017849", "canonical_name": "Prostatic Neoplasms"},
+            "cancer of the prostate": {"descriptor_id": "D011471", "concept_id": "M0017849", "canonical_name": "Prostatic Neoplasms"},
             # Androgen Deprivation Therapy
-            "androgen antagonists": {"descriptor_id": "D000726", "canonical_name": "Androgen Antagonists"},
-            "androgen deprivation therapy": {"descriptor_id": "D000726", "canonical_name": "Androgen Antagonists"},
-            "androgen suppression therapy": {"descriptor_id": "D000726", "canonical_name": "Androgen Antagonists"},
-            "adt": {"descriptor_id": "D000726", "canonical_name": "Androgen Antagonists"},
+            "androgen antagonists": {"descriptor_id": "D000726", "concept_id": "M0001280", "canonical_name": "Androgen Antagonists"},
+            "androgen deprivation therapy": {"descriptor_id": "D000726", "concept_id": "M0001280", "canonical_name": "Androgen Antagonists"},
+            "androgen suppression therapy": {"descriptor_id": "D000726", "concept_id": "M0001280", "canonical_name": "Androgen Antagonists"},
+            "adt": {"descriptor_id": "D000726", "concept_id": "M0001280", "canonical_name": "Androgen Antagonists"},
+            # Enzalutamide (SCR)
+            "enzalutamide": {"descriptor_id": "C548545", "concept_id": "M0538965", "canonical_name": "enzalutamide"},
+            "mdv-3100": {"descriptor_id": "C548545", "concept_id": "M0538965", "canonical_name": "enzalutamide"},
+            # Exercise vs Aerobic Exercise (Same Descriptor D015444, Different Concepts)
+            "exercise": {"descriptor_id": "D015444", "concept_id": "M0007873", "canonical_name": "Exercise"},
+            "exercises": {"descriptor_id": "D015444", "concept_id": "M0007873", "canonical_name": "Exercise"},
+            "aerobic exercise": {"descriptor_id": "D015444", "concept_id": "M0467554", "canonical_name": "Exercise"},
+            "aerobic exercises": {"descriptor_id": "D015444", "concept_id": "M0467554", "canonical_name": "Exercise"},
             # Depression / Depressive Disorder
-            "depressive disorder": {"descriptor_id": "D003866", "canonical_name": "Depressive Disorder"},
-            "depression": {"descriptor_id": "D003863", "canonical_name": "Depression"},
-            "depressive symptoms": {"descriptor_id": "D003863", "canonical_name": "Depression"},
-            "emotional depression": {"descriptor_id": "D003863", "canonical_name": "Depression"},
-            "major depressive disorder": {"descriptor_id": "D003865", "canonical_name": "Depressive Disorder, Major"},
+            "depressive disorder": {"descriptor_id": "D003866", "concept_id": "M0006085", "canonical_name": "Depressive Disorder"},
+            "depression": {"descriptor_id": "D003863", "concept_id": "M0006080", "canonical_name": "Depression"},
+            "depressive symptoms": {"descriptor_id": "D003863", "concept_id": "M0006080", "canonical_name": "Depression"},
+            "emotional depression": {"descriptor_id": "D003863", "concept_id": "M0006080", "canonical_name": "Depression"},
+            "major depressive disorder": {"descriptor_id": "D003865", "concept_id": "M0006084", "canonical_name": "Depressive Disorder, Major"},
             # Quality of life
-            "quality of life": {"descriptor_id": "D011788", "canonical_name": "Quality of Life"},
-            "life quality": {"descriptor_id": "D011788", "canonical_name": "Quality of Life"},
-            "hrqol": {"descriptor_id": "D011788", "canonical_name": "Quality of Life"},
+            "quality of life": {"descriptor_id": "D011788", "concept_id": "M0018318", "canonical_name": "Quality of Life"},
+            "life quality": {"descriptor_id": "D011788", "concept_id": "M0018318", "canonical_name": "Quality of Life"},
+            "hrqol": {"descriptor_id": "D011788", "concept_id": "M0018318", "canonical_name": "Quality of Life"},
             # Anxiety
-            "anxiety": {"descriptor_id": "D001007", "canonical_name": "Anxiety"},
-            "anxieties": {"descriptor_id": "D001007", "canonical_name": "Anxiety"},
-            "anxiety disorders": {"descriptor_id": "D001008", "canonical_name": "Anxiety Disorders"},
+            "anxiety": {"descriptor_id": "D001007", "concept_id": "M0001552", "canonical_name": "Anxiety"},
+            "anxieties": {"descriptor_id": "D001007", "concept_id": "M0001552", "canonical_name": "Anxiety"},
+            "anxiety disorders": {"descriptor_id": "D001008", "concept_id": "M0001553", "canonical_name": "Anxiety Disorders"},
         }
 
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(seed_data, f, ensure_ascii=False, indent=2)
 
         return out_path
+

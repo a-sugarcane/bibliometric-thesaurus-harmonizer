@@ -25,6 +25,21 @@ class TestOntology(unittest.TestCase):
         res3 = lookup.lookup("non_existent_medical_word_xyz")
         self.assertFalse(res3.matched)
 
+    def test_mesh_concept_level_synonym(self):
+        lookup = MeSHLookup()
+        # Same Concept M0017834: True synonym -> Tier 1
+        rel1 = lookup.check_synonym_relation("prostate cancer", "cancer of the prostate")
+        self.assertTrue(rel1.is_synonym)
+        self.assertEqual(rel1.tier, "Tier 1")
+        self.assertEqual(rel1.concept_id, "M0017834")
+
+        # Different Concept under same Descriptor D015444: Broad/Narrow -> Tier 2
+        rel2 = lookup.check_synonym_relation("exercise", "aerobic exercise")
+        self.assertFalse(rel2.is_synonym)
+        self.assertEqual(rel2.tier, "Tier 2")
+
+
+
     def test_canonicalizer(self):
         # Acronym vs full phrase
         target1 = Canonicalizer.arbitrate("ADT", "androgen deprivation therapy")
