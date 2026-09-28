@@ -43,6 +43,7 @@ def run_cluster_pipeline(
     file_name: str,
     enable_mesh: bool,
     enable_interceptor: bool,
+    enable_morphemes: bool = True,
 ):
     """Run full parsing and target-centric clustering pipeline once and cache in memory."""
     with tempfile.NamedTemporaryFile(delete=False, suffix=file_name) as tmp_file:
@@ -78,6 +79,7 @@ def run_cluster_pipeline(
     builder = TargetClusterBuilder(
         enable_mesh=enable_mesh,
         enable_interceptor=enable_interceptor,
+        enable_morphemes=enable_morphemes,
     )
     clusters = builder.build_clusters(freqs)
 
@@ -122,6 +124,11 @@ with st.sidebar:
     st.header("2. 聚类引擎控制")
     enable_mesh = st.checkbox("启用 NLM MeSH 语义对齐", value=True)
     enable_interceptor = st.checkbox("启用临床特化防滑坡单向拦截器", value=True)
+    enable_morphemes = st.checkbox(
+        "启用医学词根外围候选召回 (Tier 3 默认未选)",
+        value=True,
+        help="利用专科医学结合词素表（如 prostat-, depress-），将外围潜在关联词拉入目标词族，强制标记为高危且默认不勾选，供学者自主裁决",
+    )
 
     if st.button("清空本地草稿并重置"):
         if DRAFT_CHECKPOINT_FILE.exists():
@@ -140,6 +147,7 @@ format_label, records, freqs, cached_clusters = run_cluster_pipeline(
     file_name=uploaded_file.name,
     enable_mesh=enable_mesh,
     enable_interceptor=enable_interceptor,
+    enable_morphemes=enable_morphemes,
 )
 st.sidebar.success(f"已识别数据格式: **{format_label}**")
 

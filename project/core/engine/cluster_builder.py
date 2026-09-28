@@ -10,6 +10,7 @@ from core.engine.tier_classifier import HarmonizationRule
 from core.interceptor.risk_rules import ClinicalRiskInterceptor
 from core.normalizer.hyphen_resolver import HyphenResolver
 from core.normalizer.lemmatizer import HeadNounLemmatizer
+from core.normalizer.morpheme_matcher import MedicalMorphemeMatcher
 from core.normalizer.syntax_cleaner import SyntaxCleaner
 from core.ontology.mesh_lookup import MeSHLookup
 
@@ -51,18 +52,21 @@ class TargetCluster:
 
 
 class TargetClusterBuilder:
-    """Clusters corpus terms into TargetClusters using morphological, acronym, and MeSH logic."""
+    """Clusters corpus terms into TargetClusters using morphological, acronym, MeSH, and morpheme logic."""
 
     def __init__(
         self,
         enable_mesh: bool = True,
         enable_interceptor: bool = True,
+        enable_morphemes: bool = True,
         mesh_lookup: Optional[MeSHLookup] = None,
         interceptor: Optional[ClinicalRiskInterceptor] = None,
+        morpheme_matcher: Optional[MedicalMorphemeMatcher] = None,
     ):
         self.lemmatizer = HeadNounLemmatizer()
         self.mesh_lookup = mesh_lookup if (mesh_lookup and enable_mesh) else (MeSHLookup() if enable_mesh else None)
         self.interceptor = interceptor if (interceptor and enable_interceptor) else (ClinicalRiskInterceptor() if enable_interceptor else None)
+        self.morpheme_matcher = morpheme_matcher if (morpheme_matcher and enable_morphemes) else (MedicalMorphemeMatcher() if enable_morphemes else None)
 
     @staticmethod
     def is_acronym_candidate(term: str) -> bool:
@@ -273,6 +277,60 @@ class TargetClusterBuilder:
 
             if target in clusters:
                 clusters[target].variants.append(rule)
+
+        # Step 4.5: Medical Morpheme Peripheral Candidate Matching (Tier 3 Exploratory)
+        if self.morpheme_matcher:
+            # Active candidate targets (clusters with existing variants or frequency >= 2)
+            active_targets = sorted(
+                [c for c in clusters.values() if c.variant_count > 0 or c.target_raw_freq >= 2],
+                key=lambda c: (c.combined_freq, c.target_raw_freq),
+                reverse=True,
+            )
+
+            already_variant_keys = set(final_mapping.keys())
+
+            for target_cluster in active_targets:
+                target_name = target_cluster.target_term
+                existing_variant_raws = {v.raw_term.lower() for v in target_cluster.variants}
+                existing_variant_raws.add(target_name.lower())
+
+                for term, freq in freqs.items():
+                    term_lower = term.lower()
+                    if term_lower in existing_variant_raws or term in already_variant_keys:
+                        continue
+
+                    # Prevent absorbing another active target that already has its own candidate variants
+                    if term in clusters and clusters[term].variant_count > 0:
+                        continue
+
+                    shared_roots = self.morpheme_matcher.get_shared_roots(target_name, term)
+                    if shared_roots:
+                        primary_root = sorted(list(shared_roots))[0]
+
+                        # Verify with clinical risk interceptor
+                        if self.interceptor:
+                            inter_check = self.interceptor.inspect_pair(term, target_name)
+                            safety = (
+                                f"Blocked: {inter_check.reason}"
+                                if inter_check.is_blocked
+                                else f"Peripheral Morpheme: shared root '{primary_root}' (Manual confirmation required)"
+                            )
+                        else:
+                            safety = f"Peripheral Morpheme: shared root '{primary_root}' (Manual confirmation required)"
+
+                        peripheral_rule = HarmonizationRule(
+                            raw_term=term,
+                            target_term=target_name,
+                            tier=TIER_3_HIGH_RISK,
+                            rule_source=f"Medical Morpheme ({primary_root})",
+                            clinical_safety_check=safety,
+                            raw_frequency=freq,
+                            selected_for_export=False,  # STRICT: Default unselected!
+                        )
+                        target_cluster.variants.append(peripheral_rule)
+                        already_variant_keys.add(term)
+                        # Remove standalone empty cluster for this term to avoid duplicate UI clutter
+                        clusters.pop(term, None)
 
         # Step 5: Sort variants and clusters
         cluster_list = list(clusters.values())

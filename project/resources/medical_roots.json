@@ -1,0 +1,232 @@
+{
+  "prostat": {
+    "category": "Urology / Anatomy",
+    "meaning": "Pertaining to the prostate gland",
+    "examples": ["prostate", "prostatic", "prostatitis", "prostatectomy"]
+  },
+  "depress": {
+    "category": "Psychiatry / Mood",
+    "meaning": "Pertaining to depression or depressive states",
+    "examples": ["depression", "depressive", "depressed", "antidepressant"]
+  },
+  "carcin": {
+    "category": "Oncology / Pathology",
+    "meaning": "Cancer or malignant epithelial tumor",
+    "examples": ["carcinoma", "carcinogenesis", "carcinogen", "carcinoid"]
+  },
+  "onco": {
+    "category": "Oncology",
+    "meaning": "Tumor, mass, or neoplasm",
+    "examples": ["oncology", "oncogene", "oncologist", "oncogenic"]
+  },
+  "neoplas": {
+    "category": "Oncology / Pathology",
+    "meaning": "New abnormal growth or tissue",
+    "examples": ["neoplasm", "neoplastic", "neoplasia"]
+  },
+  "psych": {
+    "category": "Psychiatry / Psychology",
+    "meaning": "Mind, mental processes, or mental health",
+    "examples": ["psychology", "psychiatry", "psychological", "psychosocial", "psychotherapy"]
+  },
+  "neuro": {
+    "category": "Neurology / Neuroscience",
+    "meaning": "Nerves or nervous system",
+    "examples": ["neurology", "neurosis", "neurotic", "neuropathy", "neuroendocrine"]
+  },
+  "androgen": {
+    "category": "Endocrinology",
+    "meaning": "Male sex hormone or receptor",
+    "examples": ["androgen", "androgenic", "antiandrogen"]
+  },
+  "hormon": {
+    "category": "Endocrinology",
+    "meaning": "Chemical messenger or hormone",
+    "examples": ["hormone", "hormonal", "antihormone"]
+  },
+  "anxiet": {
+    "category": "Psychiatry / Mood",
+    "meaning": "State of anxiety or apprehension",
+    "examples": ["anxiety", "anxious", "anxiolytic"]
+  },
+  "cognit": {
+    "category": "Psychology / Neurology",
+    "meaning": "Mental action or process of acquiring knowledge",
+    "examples": ["cognition", "cognitive"]
+  },
+  "fatigu": {
+    "category": "Symptomatology",
+    "meaning": "Extreme tiredness resulting from mental or physical exertion",
+    "examples": ["fatigue", "fatigued"]
+  },
+  "distress": {
+    "category": "Psychology",
+    "meaning": "Extreme anxiety, sorrow, or pain",
+    "examples": ["distress", "distressed"]
+  },
+  "metast": {
+    "category": "Oncology / Pathology",
+    "meaning": "Development of secondary malignant growths",
+    "examples": ["metastasis", "metastatic", "metastasize"]
+  },
+  "therap": {
+    "category": "Therapeutics",
+    "meaning": "Treatment intended to relieve or heal a disorder",
+    "examples": ["therapy", "therapeutic", "therapist", "physiotherapy"]
+  },
+  "chemo": {
+    "category": "Oncology / Therapeutics",
+    "meaning": "Chemical or drug treatment",
+    "examples": ["chemotherapy", "chemotherapeutic", "chemoradiation"]
+  },
+  "radiat": {
+    "category": "Therapeutics / Radiology",
+    "meaning": "Emission of energy as electromagnetic waves",
+    "examples": ["radiation", "radiotherapy", "radiological"]
+  },
+  "surger": {
+    "category": "Surgery",
+    "meaning": "Treatment of injuries or disorders of the body by incision",
+    "examples": ["surgery", "surgical", "surgeon"]
+  },
+  "biops": {
+    "category": "Pathology / Diagnostics",
+    "meaning": "Examination of tissue removed from a living body",
+    "examples": ["biopsy", "biopsied"]
+  },
+  "immun": {
+    "category": "Immunology",
+    "meaning": "Protection from or resistance to infection or disease",
+    "examples": ["immune", "immunity", "immunotherapy", "immunology", "immunohistochemistry"]
+  },
+  "inflamm": {
+    "category": "Pathology",
+    "meaning": "Localized physical condition marked by reddened, swollen tissue",
+    "examples": ["inflammation", "inflammatory", "antiinflammatory"]
+  },
+  "genom": {
+    "category": "Genetics / Molecular",
+    "meaning": "Haploid set of chromosomes in a gamete or microorganism",
+    "examples": ["genome", "genomic", "genomics"]
+  },
+  "biomark": {
+    "category": "Diagnostics / Molecular",
+    "meaning": "Measurable indicator of the severity or presence of disease",
+    "examples": ["biomarker", "biomarkers"]
+  },
+  "resist": {
+    "category": "Pharmacology / Pathology",
+    "meaning": "Ability not to be affected by something",
+    "examples": ["resistant", "resistance"]
+  },
+  "recur": {
+    "category": "Oncology / Clinical",
+    "meaning": "Occurring again or return of disease",
+    "examples": ["recurrence", "recurrent"]
+  },
+  "relaps": {
+    "category": "Clinical",
+    "meaning": "Deterioration after a period of improvement",
+    "examples": ["relapse", "relapsing"]
+  },
+  "remiss": {
+    "category": "Oncology / Clinical",
+    "meaning": "Diminution of the seriousness or intensity of disease",
+    "examples": ["remission"]
+  },
+  "palli": {
+    "category": "Supportive Care",
+    "meaning": "Relieving pain without dealing with the cause",
+    "examples": ["palliative", "palliation"]
+  },
+  "urolo": {
+    "category": "Urology",
+    "meaning": "Branch of medicine concerning urinary system",
+    "examples": ["urology", "urological", "urologist"]
+  },
+  "urina": {
+    "category": "Urology",
+    "meaning": "Pertaining to urine or the urinary tract",
+    "examples": ["urinary", "urination"]
+  },
+  "vesic": {
+    "category": "Anatomy / Urology",
+    "meaning": "Bladder or vesicle",
+    "examples": ["vesical", "vesicle"]
+  },
+  "nephr": {
+    "category": "Nephrology / Anatomy",
+    "meaning": "Kidney",
+    "examples": ["nephrology", "nephritis", "nephrectomy"]
+  },
+  "hepat": {
+    "category": "Hepatology / Anatomy",
+    "meaning": "Liver",
+    "examples": ["hepatic", "hepatitis", "hepatoma"]
+  },
+  "cardio": {
+    "category": "Cardiology / Anatomy",
+    "meaning": "Heart",
+    "examples": ["cardiology", "cardiovascular", "cardiomyopathy"]
+  },
+  "pulmon": {
+    "category": "Pulmonology / Anatomy",
+    "meaning": "Lungs",
+    "examples": ["pulmonary", "pulmonology"]
+  },
+  "geriatr": {
+    "category": "Geriatrics",
+    "meaning": "Old age or elderly people",
+    "examples": ["geriatric", "geriatrics", "gerontology"]
+  },
+  "pediatr": {
+    "category": "Pediatrics",
+    "meaning": "Children and their diseases",
+    "examples": ["pediatric", "pediatrics"]
+  },
+  "epidem": {
+    "category": "Public Health",
+    "meaning": "Incidence, distribution, and control of disease",
+    "examples": ["epidemiology", "epidemiological"]
+  },
+  "diagnos": {
+    "category": "Diagnostics",
+    "meaning": "Identification of the nature of an illness",
+    "examples": ["diagnosis", "diagnostic", "diagnostics"]
+  },
+  "prognos": {
+    "category": "Clinical",
+    "meaning": "Likely course of a medical condition",
+    "examples": ["prognosis", "prognostic"]
+  },
+  "toxicit": {
+    "category": "Pharmacology / Clinical",
+    "meaning": "Quality, state, or relative degree of being toxic",
+    "examples": ["toxicity", "toxic"]
+  },
+  "surviv": {
+    "category": "Clinical / Outcomes",
+    "meaning": "Remaining alive or state of continuing to live",
+    "examples": ["survival", "survivor", "survivorship"]
+  },
+  "mortalit": {
+    "category": "Public Health / Outcomes",
+    "meaning": "State of being subject to death or death rate",
+    "examples": ["mortality"]
+  },
+  "morbidit": {
+    "category": "Public Health / Outcomes",
+    "meaning": "Condition of suffering from a disease or medical condition",
+    "examples": ["morbidity"]
+  },
+  "symptom": {
+    "category": "Symptomatology",
+    "meaning": "Physical or mental feature indicating a condition of disease",
+    "examples": ["symptom", "symptoms", "symptomatic", "asymptomatic"]
+  },
+  "disord": {
+    "category": "Nosology",
+    "meaning": "Disruption of normal physical or mental functions",
+    "examples": ["disorder", "disorders"]
+  }
+}
