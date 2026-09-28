@@ -272,6 +272,42 @@ if page_size_option != "全部":
 else:
     display_clusters = filtered_clusters
 
+# --- GLOBAL BATCH ACTIONS ---
+col_g1, col_g2, col_g3, _ = st.columns([2, 2, 2, 4])
+if col_g1.button("⚡ 全局：一键批准全量安全项 (Tier 1 & 2)", help="将所有词族中的 Tier 1 和 Tier 2 安全变体一键勾选，保持 Tier 3 高危项不勾选"):
+    for c in clusters:
+        for v in c.variants:
+            is_safe = (v.tier != TIER_3_HIGH_RISK)
+            v.selected_for_export = is_safe
+            saved_draft[v.raw_term] = {"selected": is_safe, "target": c.target_term}
+    with open(DRAFT_CHECKPOINT_FILE, "w", encoding="utf-8") as f:
+        json.dump(saved_draft, f, ensure_ascii=False, indent=2)
+    for k in list(st.session_state.keys()):
+        if k.startswith("editor_"):
+            del st.session_state[k]
+    st.rerun()
+
+if col_g2.button("🚫 全局：一键排除所有高危项 (Tier 3)", help="仅取消全量词族中的 Tier 3 高危/外围拦截项"):
+    for c in clusters:
+        for v in c.variants:
+            if v.tier == TIER_3_HIGH_RISK:
+                v.selected_for_export = False
+                saved_draft[v.raw_term] = {"selected": False, "target": c.target_term}
+    with open(DRAFT_CHECKPOINT_FILE, "w", encoding="utf-8") as f:
+        json.dump(saved_draft, f, ensure_ascii=False, indent=2)
+    for k in list(st.session_state.keys()):
+        if k.startswith("editor_"):
+            del st.session_state[k]
+    st.rerun()
+
+if col_g3.button("🔄 全局：重置为系统推荐默认", help="清空本地草稿缓存并重置为系统默认推荐状态"):
+    if DRAFT_CHECKPOINT_FILE.exists():
+        DRAFT_CHECKPOINT_FILE.unlink()
+    for k in list(st.session_state.keys()):
+        if k.startswith("editor_"):
+            del st.session_state[k]
+    st.rerun()
+
 st.caption(
     f"共匹配到 **{total_filtered}** 个目标词族，当前展示前 **{len(display_clusters)}** 个"
     + ("（出厂导出文件将自动包含全部已批准项）。" if total_filtered > len(display_clusters) else "。")
@@ -304,12 +340,16 @@ else:
             # Batch action buttons
             col_b1, col_b2, col_b3, _ = st.columns([1, 1, 1, 3])
             key_suffix = f"{idx}_{cluster.target_term}"
+            editor_widget_key = f"editor_{key_suffix}"
 
             if col_b1.button("全部纳入", key=f"all_{key_suffix}"):
                 for v in cluster.variants:
                     v.selected_for_export = True
                     saved_draft[v.raw_term] = {"selected": True, "target": cluster.target_term}
-                has_checkpoint_updates = True
+                with open(DRAFT_CHECKPOINT_FILE, "w", encoding="utf-8") as f:
+                    json.dump(saved_draft, f, ensure_ascii=False, indent=2)
+                if editor_widget_key in st.session_state:
+                    del st.session_state[editor_widget_key]
                 st.rerun()
 
             if col_b2.button("仅选安全项", key=f"safe_{key_suffix}"):
@@ -317,14 +357,20 @@ else:
                     is_safe = (v.tier != TIER_3_HIGH_RISK)
                     v.selected_for_export = is_safe
                     saved_draft[v.raw_term] = {"selected": is_safe, "target": cluster.target_term}
-                has_checkpoint_updates = True
+                with open(DRAFT_CHECKPOINT_FILE, "w", encoding="utf-8") as f:
+                    json.dump(saved_draft, f, ensure_ascii=False, indent=2)
+                if editor_widget_key in st.session_state:
+                    del st.session_state[editor_widget_key]
                 st.rerun()
 
-            if col_b3.button("全部取消", key=f"none_{key_suffix}"):
+            if col_b3.button("全部排除", key=f"none_{key_suffix}"):
                 for v in cluster.variants:
                     v.selected_for_export = False
                     saved_draft[v.raw_term] = {"selected": False, "target": cluster.target_term}
-                has_checkpoint_updates = True
+                with open(DRAFT_CHECKPOINT_FILE, "w", encoding="utf-8") as f:
+                    json.dump(saved_draft, f, ensure_ascii=False, indent=2)
+                if editor_widget_key in st.session_state:
+                    del st.session_state[editor_widget_key]
                 st.rerun()
 
             # Variant Editor Table
