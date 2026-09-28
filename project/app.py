@@ -1,6 +1,5 @@
-"""Streamlit Web GUI for Thesaurus Harmonizer."""
+"""Streamlit Web GUI for Thesaurus Harmonizer (Target-Centric Grouping Architecture)."""
 
-import copy
 import json
 import sys
 import tempfile
@@ -18,13 +17,8 @@ from core.parsers.pubmed_parser import PubMedParser
 from core.parsers.cnki_parser import CNKIParser
 from core.parsers.scopus_parser import ScopusParser
 from core.parsers.vos_parser import VOSParser
-from core.normalizer.syntax_cleaner import SyntaxCleaner
-from core.normalizer.lemmatizer import HeadNounLemmatizer
-from core.normalizer.hyphen_resolver import HyphenResolver
-from core.ontology.mesh_lookup import MeSHLookup
-from core.interceptor.risk_rules import ClinicalRiskInterceptor
-from core.engine.tier_classifier import TierClassifier, HarmonizationRule
-from core.engine.canonicalizer import Canonicalizer
+from core.engine.cluster_builder import TargetClusterBuilder, TargetCluster
+from core.engine.tier_classifier import HarmonizationRule
 from core.exporters.vosviewer import export_vosviewer_thesaurus
 from core.exporters.citespace import export_citespace_alias
 from core.exporters.bibliometrix import export_bibliometrix_synonyms
@@ -33,24 +27,24 @@ from core.exporters.audit_reporter import AuditReporter
 DRAFT_CHECKPOINT_FILE = Path(".draft_checkpoint.json")
 
 st.set_page_config(
-    page_title="Thesaurus Harmonizer",
+    page_title="Thesaurus Harmonizer (靶向词族系统)",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-st.title("Thesaurus Harmonizer: 文献计量学同义词自动化清洗与规范化系统")
-st.caption("基于 NLM MeSH 知识库与单向特化差集拦截引擎 | 面向 Web of Science / PubMed / VOSviewer / Bibliometrix")
+st.title("Thesaurus Harmonizer: 靶向词族同义词清洗与规范化系统")
+st.caption("基于 NLM MeSH 知识库与单向特化差集拦截引擎 | 目标词聚类架构 (Target-Centric Grouping) | 面向 VOSviewer / Bibliometrix / CiteSpace")
 
 
 # --- CACHED PIPELINE EXECUTION ---
-@st.cache_data(show_spinner="正在解析文献题录并执行知识库对齐与规则裁决...")
-def run_harmonization_pipeline(
+@st.cache_data(show_spinner="正在解析文献题录并执行全局语义聚类分析...")
+def run_cluster_pipeline(
     file_bytes: bytes,
     file_name: str,
     enable_mesh: bool,
     enable_interceptor: bool,
 ):
-    """Run full parsing and harmonization pipeline once and cache results in memory."""
+    """Run full parsing and target-centric clustering pipeline once and cache in memory."""
     with tempfile.NamedTemporaryFile(delete=False, suffix=file_name) as tmp_file:
         tmp_file.write(file_bytes)
         tmp_path = Path(tmp_file.name)
@@ -81,75 +75,19 @@ def run_harmonization_pipeline(
     finally:
         tmp_path.unlink(missing_ok=True)
 
-    lemmatizer = HeadNounLemmatizer()
-    mesh_lookup = MeSHLookup() if enable_mesh else None
-    interceptor = ClinicalRiskInterceptor() if enable_interceptor else None
+    builder = TargetClusterBuilder(
+        enable_mesh=enable_mesh,
+        enable_interceptor=enable_interceptor,
+    )
+    clusters = builder.build_clusters(freqs)
 
-    base_rules: list[HarmonizationRule] = []
-
-    for term, count in freqs.items():
-        # 1. Syntax cleaner with acronym decoupling
-        decoupled = SyntaxCleaner.decouple_parentheses(term)
-        base_term = decoupled.full_phrase
-        is_acronym = decoupled.is_acronym_valid
-
-        # 2. Hyphen resolver
-        hyphen_resolved = HyphenResolver.resolve_hyphen_term(
-            base_term,
-            corpus_frequencies=freqs,
-            mesh_terms=mesh_lookup.all_indexed_terms if mesh_lookup else None,
-        )
-
-        # 3. Lemmatization
-        lemmatized = lemmatizer.lemmatize_phrase(hyphen_resolved)
-
-        # 4. MeSH Concept lookup
-        mesh_canonical = None
-        descriptor_id = None
-        if mesh_lookup:
-            mesh_res = mesh_lookup.lookup(lemmatized)
-            if mesh_res.matched:
-                mesh_canonical = mesh_res.canonical_name
-                descriptor_id = mesh_res.descriptor_id
-
-        # 5. Canonical arbitration
-        target = Canonicalizer.arbitrate(
-            term,
-            lemmatized,
-            corpus_frequencies=freqs,
-            mesh_canonical=mesh_canonical,
-        )
-
-        # 6. Interceptor with acronym bypass
-        if interceptor:
-            interception = interceptor.inspect_pair(term, target, is_acronym_equivalent=is_acronym)
-        else:
-            from core.interceptor.risk_rules import InterceptionResult
-            interception = InterceptionResult(is_blocked=False, risk_level="SAFE")
-
-        # 7. Rule generation
-        rule_source = "Lemmatization" if lemmatized != term else "Direct"
-        if is_acronym:
-            rule_source = "Acronym Match"
-        elif descriptor_id:
-            rule_source = f"MeSH ({descriptor_id})"
-
-        rule = TierClassifier.classify(
-            raw_term=term,
-            target_term=target,
-            rule_source=rule_source,
-            interception=interception,
-            raw_frequency=count,
-        )
-        base_rules.append(rule)
-
-    return detected_format.value, records, freqs, base_rules
+    return detected_format.value, records, freqs, clusters
 
 
 # --- CACHED EXPORT BUILDER ---
 @st.cache_data(show_spinner="正在打包生成 VOSviewer 与 Table S1 审计表...")
 def prepare_export_payloads(cache_key: str, _rules: list[HarmonizationRule], _records):
-    """Generate export bundle in memory, recomputing only when rules change."""
+    """Generate export bundle in memory, recomputing only when exportable rules change."""
     with tempfile.TemporaryDirectory() as out_dir:
         out_dir_path = Path(out_dir)
 
@@ -181,30 +119,29 @@ with st.sidebar:
         help="支持 WoS (savedrecs.txt), PubMed (.nbib/.txt), CNKI (Refworks/txt), Scopus (CSV), VOSviewer (terms.txt)",
     )
 
-    st.header("2. 参数与过滤控制")
-    min_occ = st.slider("界面呈现频次阈值 (Min Occurrences)", min_value=1, max_value=20, value=DEFAULT_MIN_OCCURRENCES)
-    enable_mesh = st.checkbox("启用 NLM MeSH 概念级语义对齐", value=True)
-    enable_interceptor = st.checkbox("启用临床概念防滑坡单向拦截器", value=True)
+    st.header("2. 聚类引擎控制")
+    enable_mesh = st.checkbox("启用 NLM MeSH 语义对齐", value=True)
+    enable_interceptor = st.checkbox("启用临床特化防滑坡单向拦截器", value=True)
 
-    if st.button("清空本地草稿重置"):
+    if st.button("清空本地草稿并重置"):
         if DRAFT_CHECKPOINT_FILE.exists():
             DRAFT_CHECKPOINT_FILE.unlink()
-        st.success("已重置本地草稿缓存。")
+        st.success("已重置本地修改缓存。")
         st.rerun()
 
 if not uploaded_file:
-    st.info("请在左侧边栏上传待清洗的文献计量学数据导出文件（例如 1,570 篇 WoS 纯文本 savedrecs.txt）。")
+    st.info("请在左侧边栏上传待清洗的文献题录导出文件（如 1,570 篇 WoS 纯文本 savedrecs.txt）。")
     st.stop()
 
 
 # --- EXECUTE / LOAD FROM CACHE ---
-format_label, records, freqs, cached_base_rules = run_harmonization_pipeline(
+format_label, records, freqs, cached_clusters = run_cluster_pipeline(
     file_bytes=uploaded_file.getvalue(),
     file_name=uploaded_file.name,
     enable_mesh=enable_mesh,
     enable_interceptor=enable_interceptor,
 )
-st.sidebar.success(f"已自动识别格式: **{format_label}**")
+st.sidebar.success(f"已识别数据格式: **{format_label}**")
 
 # Load Draft Checkpoint if exists
 saved_draft = {}
@@ -215,207 +152,235 @@ if DRAFT_CHECKPOINT_FILE.exists():
     except Exception:
         saved_draft = {}
 
-# Clone rules from cache to apply session overrides without cache mutation warnings
-all_rules: list[HarmonizationRule] = []
-for r in cached_base_rules:
-    new_rule = HarmonizationRule(
-        raw_term=r.raw_term,
-        target_term=r.target_term,
-        tier=r.tier,
-        rule_source=r.rule_source,
-        clinical_safety_check=r.clinical_safety_check,
-        raw_frequency=r.raw_frequency,
-        selected_for_export=r.selected_for_export,
+# Clone clusters from cache to safely apply interactive session state
+clusters: list[TargetCluster] = []
+for c in cached_clusters:
+    new_variants: list[HarmonizationRule] = []
+    for v in c.variants:
+        rule_copy = HarmonizationRule(
+            raw_term=v.raw_term,
+            target_term=v.target_term,
+            tier=v.tier,
+            rule_source=v.rule_source,
+            clinical_safety_check=v.clinical_safety_check,
+            raw_frequency=v.raw_frequency,
+            selected_for_export=v.selected_for_export,
+        )
+        if v.raw_term in saved_draft:
+            override = saved_draft[v.raw_term]
+            if "selected" in override:
+                rule_copy.selected_for_export = override["selected"]
+            if "target" in override:
+                rule_copy.target_term = override["target"]
+        new_variants.append(rule_copy)
+
+    new_cluster = TargetCluster(
+        target_term=c.target_term,
+        target_raw_freq=c.target_raw_freq,
+        variants=new_variants,
     )
-    if r.raw_term in saved_draft:
-        override = saved_draft[r.raw_term]
-        if "target" in override:
-            new_rule.target_term = override["target"]
-        if "selected" in override:
-            new_rule.selected_for_export = override["selected"]
-    all_rules.append(new_rule)
-
-# Separate rules
-changed_rules = [r for r in all_rules if r.raw_term.strip().lower() != r.target_term.strip().lower()]
-anchor_rules = [r for r in all_rules if r.raw_term.strip().lower() == r.target_term.strip().lower()]
-blocked_rules = [r for r in all_rules if r.tier == TIER_3_HIGH_RISK]
-
-# Sort all candidate lists strictly by raw frequency descending
-all_rules.sort(key=lambda r: r.raw_frequency, reverse=True)
-changed_rules.sort(key=lambda r: r.raw_frequency, reverse=True)
-anchor_rules.sort(key=lambda r: r.raw_frequency, reverse=True)
-blocked_rules.sort(key=lambda r: r.raw_frequency, reverse=True)
-
-# Build quick lookup by raw_term for safe user editing
-rule_by_raw = {r.raw_term: r for r in all_rules}
+    clusters.append(new_cluster)
 
 
 # --- METRICS PANEL ---
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("语料总独立词数", len(freqs))
-col2.metric("核心基准词数 (原形)", len(anchor_rules))
-col3.metric("建议合并词对 (变体)", len(changed_rules))
-col4.metric("单向拦截高危项", len(blocked_rules))
+clusters_with_variants = [c for c in clusters if c.variant_count > 0]
+singletons = [c for c in clusters if c.variant_count == 0]
+total_variants = sum(c.variant_count for c in clusters)
+approved_variants = sum(c.selected_variant_count for c in clusters)
+blocked_variants = sum(1 for c in clusters for v in c.variants if v.tier == TIER_3_HIGH_RISK)
+
+col1, col2, col3, col4, col5 = st.columns(5)
+col1.metric("语料独立词总数", len(freqs))
+col2.metric("聚合同义词族数", len(clusters_with_variants))
+col3.metric("候选合并变体数", total_variants)
+col4.metric("当前已选合并项", approved_variants)
+col5.metric("临床高危拦截项", blocked_variants)
 
 st.divider()
 
 
-# --- INTERACTIVE VIEW & SEARCH CONTROLS ---
-st.subheader("人机在环：词频降序候选审查面板")
+# --- INTERACTIVE SEARCH & FILTER CONTROLS ---
+st.subheader("人机在环：靶向词族审查与合并决策面板")
 
-view_mode = st.radio(
-    "查看模式切换",
-    options=[
-        "全部高频词族总览 (含核心基准词与合并项)",
-        "仅看建议合并审查表 (Raw ≠ Target)",
-        "仅看临床高危拦截项 (Tier 3 阻断项)",
-    ],
-    horizontal=True,
-    help="默认展示全部高频词（含未改变的基准词）；可一键切换为仅看存在合并动作的审查表。",
-)
-
-c_search, c_bracket, c_size = st.columns([3, 2, 1])
+c_search, c_filter, c_sort, c_page = st.columns([3, 2, 2, 1])
 
 search_query = c_search.text_input(
-    "🔍 关键词即时检索 (如 depression / prostate)",
-    placeholder="输入词根或缩写实时检索词族...",
-    help="支持模糊搜索原始词或规范目标词，快速查看相关同义词族分布",
+    "🔍 词族实时检索 (如 depression / prostate)",
+    placeholder="输入关键词检索目标词或其下属变体...",
+    help="跨目标词与下属变体联合检索，即时调出目标词族",
 ).strip().lower()
 
-bracket_filter = c_bracket.radio(
-    "频段快速过滤",
-    options=["全部", "高频核心 (≥20)", "中频 (5~19)", "长尾 (2~4)"],
-    horizontal=True,
+cluster_filter_mode = c_filter.radio(
+    "词族视图范围",
+    options=["仅看有合并建议的词族 (Variants > 0)", "仅看含高危拦截项的词族 (Tier 3)", "查看全部词目 (含独立词)"],
+    horizontal=False,
 )
 
-page_size_option = c_size.selectbox(
-    "单页展示条数",
-    options=[50, 100, 200, "全部"],
+sort_mode = c_sort.selectbox(
+    "排序规则",
+    options=["按合并后总词频降序", "按候选变体数量降序", "按目标词原生频次降序"],
+    index=0,
+)
+
+page_size_option = c_page.selectbox(
+    "每页词族数",
+    options=[10, 25, 50, "全部"],
     index=1,
 )
 
 
-# Determine candidate pool based on view mode
-if view_mode == "仅看建议合并审查表 (Raw ≠ Target)":
-    base_pool = changed_rules
-elif view_mode == "仅看临床高危拦截项 (Tier 3 阻断项)":
-    base_pool = blocked_rules
-else:
-    base_pool = all_rules
-
-# Apply filtering
-filtered_pool = []
-for r in base_pool:
-    # If user explicitly searched, prioritize keyword match across all frequencies
+# Filter clusters
+filtered_clusters = []
+for c in clusters:
+    # Search filter: matches target_term or any variant raw_term
     if search_query:
-        if search_query not in r.raw_term.lower() and search_query not in r.target_term.lower():
-            continue
-    else:
-        # Threshold filter
-        if r.raw_frequency < min_occ:
-            continue
-        # Bracket filter
-        if bracket_filter == "高频核心 (≥20)" and r.raw_frequency < 20:
-            continue
-        elif bracket_filter == "中频 (5~19)" and not (5 <= r.raw_frequency < 20):
-            continue
-        elif bracket_filter == "长尾 (2~4)" and not (2 <= r.raw_frequency < 5):
+        target_match = search_query in c.target_term.lower()
+        variant_match = any(search_query in v.raw_term.lower() for v in c.variants)
+        if not (target_match or variant_match):
             continue
 
-    filtered_pool.append(r)
-
-# Slicing for fast DOM rendering
-total_matched = len(filtered_pool)
-if page_size_option != "全部":
-    page_limit = int(page_size_option)
-    display_rules = filtered_pool[:page_limit]
-else:
-    display_rules = filtered_pool
-
-st.caption(
-    f"共匹配到 **{total_matched}** 条词目，当前显示前 **{len(display_rules)}** 条"
-    + ("（导出文件将包含全量记录）。" if total_matched > len(display_rules) else "。")
-)
-
-
-# Build Table DataFrame
-table_data = []
-for r in display_rules:
-    is_changed = (r.raw_term.strip().lower() != r.target_term.strip().lower())
-    action_type = "建议合并项" if is_changed else "核心基准词"
-    display_tier = r.tier if is_changed else "基准词 (Anchor)"
-
-    table_data.append(
-        {
-            "选中导出": r.selected_for_export,
-            "处理动作": action_type,
-            "原始词 (Raw)": r.raw_term,
-            "规范目标词 (Target)": r.target_term,
-            "置信层级 (Tier)": display_tier,
-            "规则依据": ("语料基准词" if not is_changed else r.rule_source),
-            "临床安全校验": r.clinical_safety_check,
-            "语料频次": r.raw_frequency,
-        }
-    )
-
-df = pd.DataFrame(table_data)
-
-edited_df = st.data_editor(
-    df,
-    disabled=["处理动作", "原始词 (Raw)", "置信层级 (Tier)", "规则依据", "临床安全校验", "语料频次"],
-    hide_index=True,
-    height=450,
-)
-
-# Persist edits to Checkpoint safely via raw_term lookup
-has_changes = False
-for idx, row in edited_df.iterrows():
-    raw_key = str(row["原始词 (Raw)"]).strip()
-    target_rule = rule_by_raw.get(raw_key)
-    if not target_rule:
+    # Scope filter
+    if cluster_filter_mode == "仅看有合并建议的词族 (Variants > 0)" and c.variant_count == 0:
+        continue
+    elif cluster_filter_mode == "仅看含高危拦截项的词族 (Tier 3)" and not c.has_blocked_variants:
         continue
 
-    new_target = str(row["规范目标词 (Target)"]).strip()
-    new_selected = bool(row["选中导出"])
+    filtered_clusters.append(c)
 
-    if target_rule.target_term != new_target or target_rule.selected_for_export != new_selected:
-        target_rule.target_term = new_target
-        target_rule.selected_for_export = new_selected
-        saved_draft[raw_key] = {"target": new_target, "selected": new_selected}
-        has_changes = True
+# Sort clusters
+if sort_mode == "按候选变体数量降序":
+    filtered_clusters.sort(key=lambda c: (c.variant_count, c.combined_freq), reverse=True)
+elif sort_mode == "按目标词原生频次降序":
+    filtered_clusters.sort(key=lambda c: (c.target_raw_freq, c.variant_count), reverse=True)
+else:
+    filtered_clusters.sort(key=lambda c: (c.combined_freq, c.variant_count), reverse=True)
 
-if has_changes:
+
+# Slicing
+total_filtered = len(filtered_clusters)
+if page_size_option != "全部":
+    page_limit = int(page_size_option)
+    display_clusters = filtered_clusters[:page_limit]
+else:
+    display_clusters = filtered_clusters
+
+st.caption(
+    f"共匹配到 **{total_filtered}** 个目标词族，当前展示前 **{len(display_clusters)}** 个"
+    + ("（出厂导出文件将自动包含全部已批准项）。" if total_filtered > len(display_clusters) else "。")
+)
+
+
+# --- RENDER TARGET CLUSTERS ---
+has_checkpoint_updates = False
+
+if not display_clusters:
+    st.info("当前筛选条件下未检索到匹配的词族。")
+else:
+    for idx, cluster in enumerate(display_clusters):
+        # Cluster Header Metrics
+        badge_diff = cluster.combined_freq - cluster.target_raw_freq
+        diff_str = f"(+{badge_diff})" if badge_diff > 0 else ""
+        alert_str = " | 🚨 存在高危拦截项" if cluster.has_blocked_variants else ""
+
+        expander_title = (
+            f"🎯 规范目标词: 【{cluster.target_term}】 "
+            f"— 原生频次: {cluster.target_raw_freq} | 纳入合并后总频次: {cluster.combined_freq} {diff_str} "
+            f"| 待审变体: {cluster.variant_count} 项{alert_str}"
+        )
+
+        with st.expander(expander_title, expanded=(cluster.variant_count > 0)):
+            if cluster.variant_count == 0:
+                st.write(f"此词目在语料中为独立基准词（原生频次: {cluster.target_raw_freq}），无待合并变体。")
+                continue
+
+            # Batch action buttons
+            col_b1, col_b2, col_b3, _ = st.columns([1, 1, 1, 3])
+            key_suffix = f"{idx}_{cluster.target_term}"
+
+            if col_b1.button("全部纳入", key=f"all_{key_suffix}"):
+                for v in cluster.variants:
+                    v.selected_for_export = True
+                    saved_draft[v.raw_term] = {"selected": True, "target": cluster.target_term}
+                has_checkpoint_updates = True
+                st.rerun()
+
+            if col_b2.button("仅选安全项", key=f"safe_{key_suffix}"):
+                for v in cluster.variants:
+                    is_safe = (v.tier != TIER_3_HIGH_RISK)
+                    v.selected_for_export = is_safe
+                    saved_draft[v.raw_term] = {"selected": is_safe, "target": cluster.target_term}
+                has_checkpoint_updates = True
+                st.rerun()
+
+            if col_b3.button("全部取消", key=f"none_{key_suffix}"):
+                for v in cluster.variants:
+                    v.selected_for_export = False
+                    saved_draft[v.raw_term] = {"selected": False, "target": cluster.target_term}
+                has_checkpoint_updates = True
+                st.rerun()
+
+            # Variant Editor Table
+            table_rows = []
+            for v in cluster.variants:
+                table_rows.append(
+                    {
+                        "纳入合并": v.selected_for_export,
+                        "原始变体词 (Raw)": v.raw_term,
+                        "变体原生频次": v.raw_frequency,
+                        "置信层级 (Tier)": v.tier,
+                        "对齐规则依据": v.rule_source,
+                        "临床安全校验": v.clinical_safety_check,
+                    }
+                )
+
+            df_variants = pd.DataFrame(table_rows)
+
+            edited_variants = st.data_editor(
+                df_variants,
+                disabled=["原始变体词 (Raw)", "变体原生频次", "置信层级 (Tier)", "对齐规则依据", "临床安全校验"],
+                hide_index=True,
+                key=f"editor_{key_suffix}",
+            )
+
+            # Persist Checkbox toggles
+            for _, row in edited_variants.iterrows():
+                raw_kw = str(row["原始变体词 (Raw)"]).strip()
+                new_sel = bool(row["纳入合并"])
+
+                for v in cluster.variants:
+                    if v.raw_term == raw_kw and v.selected_for_export != new_sel:
+                        v.selected_for_export = new_sel
+                        saved_draft[v.raw_term] = {"selected": new_sel, "target": cluster.target_term}
+                        has_checkpoint_updates = True
+
+if has_checkpoint_updates:
     with open(DRAFT_CHECKPOINT_FILE, "w", encoding="utf-8") as f:
         json.dump(saved_draft, f, ensure_ascii=False, indent=2)
 
-
-# --- COLLAPSIBLE SINGLETON LOG ---
-singleton_rules = [r for r in changed_rules if r.raw_frequency < min_occ]
-with st.expander(f"查看底层静默合并日志（频次 < {min_occ} 的长尾项，共 {len(singleton_rules)} 条）"):
-    st.caption("以下长尾单次词已在底层完成形态归一化，如需人工调整可在主界面降低频次阈值。")
-    if singleton_rules:
-        singleton_data = [
-            {"原始词": r.raw_term, "规范目标词": r.target_term, "层级": r.tier, "频次": r.raw_frequency}
-            for r in singleton_rules[:100]
-        ]
-        st.dataframe(pd.DataFrame(singleton_data), hide_index=True)
-        if len(singleton_rules) > 100:
-            st.info(f"仅显示前 100 条，其余 {len(singleton_rules)-100} 条已包含在完整导出文件中。")
-    else:
-        st.write("暂无低频合并项。")
 
 st.divider()
 
 
 # --- EXPORT SECTION ---
-st.subheader("出厂导出：VOSviewer 与审稿级 Table S1")
+st.subheader("出厂导出：VOSviewer 与审稿级 Table S1 审计表")
 
-# Create export hash key based on rule targets and selection status
-export_hash_key = f"{len(all_rules)}_{sum(1 for r in all_rules if r.selected_for_export)}_{hash(tuple((r.target_term, r.selected_for_export) for r in all_rules[:100]))}"
+# Extract strictly user-selected, non-self-merging variant rules
+exportable_rules: list[HarmonizationRule] = []
+for c in clusters:
+    for v in c.variants:
+        # ABSOLUTE INVARIANT: Must be selected AND raw != target
+        if v.selected_for_export and (v.raw_term.strip().lower() != c.target_term.strip().lower()):
+            exportable_rules.append(v)
+
+st.write(
+    f"当前已就绪导出规则：**{len(exportable_rules)}** 条有效合并对（严格杜绝自身合并，覆盖全量已勾选变体）。"
+)
+
+export_hash_key = f"{len(exportable_rules)}_{hash(tuple((r.raw_term, r.target_term, r.selected_for_export) for r in exportable_rules))}"
 
 vos_txt, citespace_alias, bib_csv, audit_xlsx_bytes = prepare_export_payloads(
     cache_key=export_hash_key,
-    _rules=all_rules,
+    _rules=exportable_rules,
     _records=records,
 )
 
