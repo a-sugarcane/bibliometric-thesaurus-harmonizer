@@ -129,9 +129,10 @@ def main():
     # 6. Export outputs
     export_vosviewer_thesaurus(harmonization_rules, output_dir / "thesaurus_vosviewer.txt")
     export_citespace_alias(harmonization_rules, output_dir / "citespace.alias")
-    export_audit_report_excel(harmonization_rules, output_dir / "Thesaurus_Audit_Report.xlsx")
+    export_audit_report_excel(harmonization_rules, output_dir / "Table_S1_Thesaurus_Audit.xlsx", docs=records)
 
     print(f"[+] Processing completed. Output files generated in: {output_dir}")
+
 
 
 if __name__ == "__main__":

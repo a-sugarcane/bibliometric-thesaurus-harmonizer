@@ -41,7 +41,7 @@
 - Consumes: Raw WoS plain text records (`savedrecs.txt` format with `PT J`, `UT WOS:...`, `DE ...`, `ID ...`, `ER`).
 - Produces: `DocumentRecord(doc_id: str, author_keywords_de: Set[str], keywords_plus_id: Set[str], effective_keywords: Set[str], is_de_fallback: bool, combined_keywords: Set[str])`.
 
-- [ ] **Step 1: Write the failing test for DE fallback and bipartite extraction**
+- [x] **Step 1: Write the failing test for DE fallback and bipartite extraction**
 
 ```python
 # In project/tests/test_parsers.py
@@ -66,23 +66,23 @@ ER
     self.assertIn("castration-resistant prostate cancer", records[1].effective_keywords)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `PYTHONPATH=project python3 -m unittest project/tests/test_parsers.py`
 Expected: FAIL with `AttributeError` or missing `is_de_fallback`/`effective_keywords`.
 
-- [ ] **Step 3: Implement minimal code in `wos_parser.py`**
+- [x] **Step 3: Implement minimal code in `wos_parser.py`**
 
 Add `effective_keywords` and `is_de_fallback` fields to `DocumentRecord`. In `parse_record`:
 If `author_keywords_de` is non-empty, `effective_keywords = author_keywords_de`, `is_de_fallback = False`.
 If `author_keywords_de` is empty, `effective_keywords = keywords_plus_id`, `is_de_fallback = True`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `PYTHONPATH=project python3 -m unittest project/tests/test_parsers.py`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add project/core/parsers/wos_parser.py project/tests/test_parsers.py
@@ -102,7 +102,7 @@ git commit -m "feat(parser): add DE/ID fallback protocol and effective keywords"
 - Consumes: Raw keyword string (e.g. `quality of life (QoL)`, `metastatic castration-resistant prostate cancer (mCRPC)`, `metastases`).
 - Produces: Normalized string, extracted acronym pairs, or unchanged string if non-acronym parenthetical.
 
-- [ ] **Step 1: Write failing tests for QoL and mCRPC acronym alignment**
+- [x] **Step 1: Write failing tests for QoL and mCRPC acronym alignment**
 
 ```python
 # In project/tests/test_normalizer.py
@@ -126,12 +126,12 @@ def test_biomedical_acronym_alignment():
     self.assertIsNone(res3)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `PYTHONPATH=project python3 -m unittest project/tests/test_normalizer.py`
 Expected: FAIL due to strict initial-letter mismatch on `of` and `m-`.
 
-- [ ] **Step 3: Implement stopword filtering and prefix tolerance in `syntax_cleaner.py`**
+- [x] **Step 3: Implement stopword filtering and prefix tolerance in `syntax_cleaner.py`**
 
 In `SyntaxCleaner.extract_acronym_pair`:
 1. Extract text outside parentheses and inside parentheses.
@@ -139,12 +139,12 @@ In `SyntaxCleaner.extract_acronym_pair`:
 3. Define valid biomedical prefixes: `{'m', 'p', 'mi', 'lnc', 'circ', 't'}`.
 4. Filter tokens outside parentheses to compare initials against the inner acronym, allowing first letter of acronym to match a lowercase prefix. If matching fails, return `None` (preserving phrase).
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `PYTHONPATH=project python3 -m unittest project/tests/test_normalizer.py`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add project/core/normalizer/syntax_cleaner.py project/tests/test_normalizer.py
@@ -164,7 +164,7 @@ git commit -m "feat(normalizer): add biomedical acronym matching with stopword f
 - Consumes: Term string (e.g. `enzalutamide`, `mdv-3100`, `aerobic exercise`, `exercise`).
 - Produces: `MeSHMatchResult(found: bool, descriptor_ui: str, concept_ui: str, preferred_term: str, is_concept_preferred: bool, tier: str)`.
 
-- [ ] **Step 1: Write failing tests for ConceptUI vs DescriptorUI discrimination**
+- [x] **Step 1: Write failing tests for ConceptUI vs DescriptorUI discrimination**
 
 ```python
 # In project/tests/test_ontology.py
@@ -180,22 +180,22 @@ def test_mesh_concept_level_synonym():
     self.assertNotEqual(rel2.tier, "Tier 1")
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `PYTHONPATH=project python3 -m unittest project/tests/test_ontology.py`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement ConceptUI indexing in `mesh_compiler.py` and `mesh_lookup.py`**
+- [x] **Step 3: Implement ConceptUI indexing in `mesh_compiler.py` and `mesh_lookup.py`**
 
 Store `concept_ui` in `mesh_index.json` dictionary: `term -> {"descriptor_ui": "...", "concept_ui": "...", "preferred_term": "..."}`.
 When evaluating candidate pair $(A, B)$, check if `concept_ui(A) == concept_ui(B)`. Only assign Tier 1 if both share the exact same `concept_ui`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `PYTHONPATH=project python3 -m unittest project/tests/test_ontology.py`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add project/core/ontology/mesh_lookup.py project/core/ontology/mesh_compiler.py project/tests/test_ontology.py
@@ -214,7 +214,7 @@ git commit -m "feat(ontology): enforce MeSH ConceptUI-level synonym resolution"
 - Consumes: `source_term: str`, `target_term: str`, `is_acronym_equivalent: bool`.
 - Produces: `RiskCheckResult(is_blocked: bool, tier: str, dropped_modifiers: List[str], reason: str)`.
 
-- [ ] **Step 1: Write failing test for unidirectional modifier dropping**
+- [x] **Step 1: Write failing test for unidirectional modifier dropping**
 
 ```python
 # In project/tests/test_interceptor.py
@@ -232,24 +232,24 @@ def test_unidirectional_modifier_interception():
     self.assertFalse(res2.is_blocked)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `PYTHONPATH=project python3 -m unittest project/tests/test_interceptor.py`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement unidirectional difference check in `risk_rules.py`**
+- [x] **Step 3: Implement unidirectional difference check in `risk_rules.py`**
 
 Define `HIGH_RISK_MODIFIERS = {'metastatic', 'advanced', 'castration-resistant', 'crpc', 'mcrpc', 'recurrent', 'refractory', 'resistant', 'mdd', 'major', 'distress'}`.
 Compute `dropped_words = set(tokenize(source_term)) - set(tokenize(target_term))`.
 If `is_acronym` is False and `dropped_words & HIGH_RISK_MODIFIERS` is non-empty:
 Mark `is_blocked = True`, `tier = "Tier 3"`, reason = "Clinical Stage/Subtype Collapse Intercepted".
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `PYTHONPATH=project python3 -m unittest project/tests/test_interceptor.py`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add project/core/interceptor/risk_rules.py project/tests/test_interceptor.py
@@ -269,7 +269,7 @@ git commit -m "feat(interceptor): implement unidirectional clinical stage differ
 - Consumes: Bipartite document graph, finalized thesaurus mappings `Dict[str, str]`, rule audit metadata.
 - Produces: `thesaurus_vosviewer.txt`, `Table_S1_Thesaurus_Audit.xlsx`.
 
-- [ ] **Step 1: Write failing test for dual-metric calculation**
+- [x] **Step 1: Write failing test for dual-metric calculation**
 
 ```python
 # In project/tests/test_exporters.py
@@ -291,24 +291,24 @@ def test_dual_metric_frequency():
     self.assertEqual(metrics["prostate cancer"]["doc_count"], 2)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `PYTHONPATH=project python3 -m unittest project/tests/test_exporters.py`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement dual-metric calculation and Excel exporter**
+- [x] **Step 3: Implement dual-metric calculation and Excel exporter**
 
 In `audit_reporter.py`:
 1. Calculate `raw_sum`: sum of occurrences across all records.
 2. Calculate `doc_count`: count documents where canonical term appears in `effective_keywords` at least once after mapping.
 3. Export Excel with two sheets: `Table S1 Harmonization Audit` and `Methodological Statement`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `PYTHONPATH=project python3 -m unittest project/tests/test_exporters.py`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add project/core/exporters/audit_reporter.py project/core/exporters/vosviewer.py project/tests/test_exporters.py
@@ -327,7 +327,7 @@ git commit -m "feat(exporter): implement dual-metric frequency auditing and Tabl
 - Consumes: Raw WoS savedrecs file, precompiled MeSH index.
 - Produces: Interactive Web UI for frequency-descending curation, auto-saved `.draft_checkpoint.json`, exported `thesaurus_vosviewer.txt` and `Table_S1_Thesaurus_Audit.xlsx`.
 
-- [ ] **Step 1: Implement Two-Stage Threshold and Draft Checkpoint in `app.py`**
+- [x] **Step 1: Implement Two-Stage Threshold and Draft Checkpoint in `app.py`**
 1. Backend Tier 1 executes silently on all vocabulary terms (including frequency=1 singletons).
 2. Filter candidates for display: default combined frequency $\ge 2$.
 3. Render data table sorted by `raw_frequency` descending.
@@ -335,11 +335,11 @@ git commit -m "feat(exporter): implement dual-metric frequency auditing and Tabl
 5. On any edit or checkbox toggle, auto-persist to `.draft_checkpoint.json`.
 6. Add bottom collapsible expander: "View Singleton / Low-Frequency Merge Log".
 
-- [ ] **Step 2: Execute integration test on 1,570 WoS dataset**
+- [x] **Step 2: Execute integration test on 1,570 WoS dataset**
 Run: `PYTHONPATH=project python3 project/cli.py run-batch --input "savedrecs.txt" --threshold 2`
 Verify: Table S1 generated, zero clinical false merges on gold standard, VOSviewer loads `thesaurus.txt` with 0 errors.
 
-- [ ] **Step 3: Commit and Push to GitHub**
+- [x] **Step 3: Commit and Push to GitHub**
 
 ```bash
 git add project/app.py project/cli.py
