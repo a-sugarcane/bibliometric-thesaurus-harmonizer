@@ -146,13 +146,16 @@ flowchart TD
 
 ---
 
-### 模块 6：外围医学词根扩展规划（Medical Morpheme Peripheral Recall）
-* **定位**：待扩展组件，用于进一步扩大潜在候选词的外围召回。
-* **规划源码**：`project/core/normalizer/morpheme_matcher.py` 与 `project/resources/medical_roots.json`
-* **技术方案**：
-  1. 引入 1,200 个希腊/拉丁医学结合构词成分（如 `prostat-`, `carcin-`, `onco-`, `depress-`, `psych-`）。
-  2. 提取短语中心名词的词根，要求最短词根长度 $\ge 4$ 个字符，过滤掉无特异性的通用前缀。
-  3. **安全性兜底**：通过纯词根召回的外围词条一律强制赋予 **Tier 3 (High-Risk Morpheme)**，默认保持不勾选状态，由学者自主决定。
+### 模块 6：外围医学词根扩展引擎（Medical Morpheme Peripheral Recall）
+* **定位**：**[已生产上线交付]** 扩大潜在同义词族外围召回率的专科构词扩展引擎。
+* **涉及源码**：
+  - [`project/core/normalizer/morpheme_matcher.py`](file:///Users/a_sugarcan3/antigravity%20workplace/bibliometric%20thesaurus/project/core/normalizer/morpheme_matcher.py)
+  - [`project/resources/medical_roots.json`](file:///Users/a_sugarcan3/antigravity%20workplace/bibliometric%20thesaurus/project/resources/medical_roots.json)
+* **技术方案与算法机制**：
+  1. 引入 46+ 个涵盖肿瘤学、泌尿学、精神医学的核心希腊/拉丁结合构词成分（如 `prostat-`, `carcin-`, `onco-`, `depress-`, `psych-` 等）。
+  2. 提取短语中心名词的构词成分，强制最短词根长度 $\ge 4$ 个字符，过滤掉无特异性的通用前缀，杜绝 `protein` 或 `progression` 与 `prostate` 产生虚假碰撞。
+  3. **学术安全性兜底**：通过纯词根召回的外围候选词条（如 `prostatitis`, `prostatectomy` 归入 `prostate cancer`；`depressive disorder`, `antidepressants` 归入 `depression`）**一律强制赋予 Tier 3 (High-Risk Morpheme)**，默认状态严格保持不勾选（`selected_for_export = False`），交由学者在前端自主决策。
+* **时间复杂度**：$\mathcal{O}(Tokens \cdot |Roots|)$，微秒级匹配。
 
 ---
 
@@ -208,10 +211,11 @@ flowchart TD
 
 ## 四、 自动化测试覆盖总览
 
-全量单元测试位于 `project/tests/`，包含 22 项严苛测试：
+全量单元测试位于 `project/tests/`，包含 26 项严苛测试：
 
 | 测试模块 | 覆盖用例项 | 关键核验点 |
 | :--- | :--- | :--- |
+| `test_morpheme_matcher.py` | 4 个测试用例 | 专科词根提取特异度、通用前缀防假阳性碰撞、词族外围召回集成、**零自合并绝对约束** |
 | `test_cluster_builder.py` | 5 个测试用例 | **零自合并绝对约束**、主导词最高频选举、缩写全称归属、临床特化修饰拦截、动态总频次计算 |
 | `test_normalizer.py` | 5 个测试用例 | 停用词缩写对齐、前缀容忍（mCRPC）、医学专科词白名单保护、连字符三级仲裁 |
 | `test_ontology.py` | 4 个测试用例 | MeSH Concept 级真同义词匹配、Descriptor 级关联概念隔离、O(1) 查表吞吐率 |
@@ -225,7 +229,7 @@ PYTHONPATH=project python3 -m unittest discover -s project/tests
 ```
 **运行结果**：
 ```text
-Ran 22 tests in 1.564s
+Ran 26 tests in 1.648s
 OK
 ```
 
