@@ -62,21 +62,36 @@ class ClinicalRiskInterceptor:
         """Tokenize text into lowercase alphanumeric tokens."""
         return set(re.findall(r"[a-zA-Z0-9\-]+", text.lower()))
 
-    def inspect_pair(self, term_x: str, term_y: str) -> InterceptionResult:
+    def inspect_pair(
+        self, term_x: str, term_y: str, is_acronym_equivalent: bool = False
+    ) -> InterceptionResult:
         r"""Inspect proposed merge of term_x and term_y using difference set analysis.
+
+        If is_acronym_equivalent is True (e.g. verified by syntax cleaner or MeSH),
+        acronym-full form alignment is considered clinically safe and bypasses blockage.
 
         Formula:
             Delta = (Tokens(X) union Tokens(Y)) \ (Tokens(X) intersect Tokens(Y))
 
-        If any token in Delta is in all_risk_terms, intercept and block.
+        If any token in Delta is in all_risk_terms and not an acronym equivalence,
+        intercept and block to prevent clinical concept slippage.
 
         Args:
-            term_x: First keyword.
-            term_y: Second keyword.
+            term_x: First keyword (source).
+            term_y: Second keyword (target).
+            is_acronym_equivalent: Whether terms have been pre-verified as acronym-full form equivalents.
 
         Returns:
             InterceptionResult with blockage status and reason.
         """
+        if is_acronym_equivalent:
+            return InterceptionResult(
+                is_blocked=False,
+                risk_level="SAFE",
+                conflicting_tokens=set(),
+                reason="Verified biomedical acronym equivalence safely bypassed interception.",
+            )
+
         toks_x = self._tokenize(term_x)
         toks_y = self._tokenize(term_y)
 
@@ -113,3 +128,4 @@ class ClinicalRiskInterceptor:
             conflicting_tokens=set(),
             reason="Clinical safety check passed.",
         )
+

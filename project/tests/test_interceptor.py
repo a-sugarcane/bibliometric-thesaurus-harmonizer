@@ -22,6 +22,25 @@ class TestInterceptor(unittest.TestCase):
         self.assertTrue(res2.is_blocked)
         self.assertIn("crpc", res2.conflicting_tokens)
 
+    def test_unidirectional_modifier_and_acronym_bypass(self):
+        interceptor = ClinicalRiskInterceptor()
+
+        # Valid acronym expansion should NOT be blocked
+        res_acronym = interceptor.inspect_pair(
+            "mCRPC", "metastatic castration-resistant prostate cancer", is_acronym_equivalent=True
+        )
+        self.assertFalse(res_acronym.is_blocked)
+        self.assertEqual(res_acronym.risk_level, "SAFE")
+
+        # Dropping high-risk clinical modifier without acronym equivalence MUST be blocked
+        res_collapse = interceptor.inspect_pair(
+            "metastatic prostate cancer", "prostate cancer", is_acronym_equivalent=False
+        )
+        self.assertTrue(res_collapse.is_blocked)
+        self.assertEqual(res_collapse.risk_level, "HIGH_RISK")
+        self.assertIn("metastatic", res_collapse.conflicting_tokens)
+
+
     def test_interceptor_psychiatric_boundary(self):
         interceptor = ClinicalRiskInterceptor()
 
