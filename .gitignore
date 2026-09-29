@@ -49,3 +49,5 @@ mesh_cache/
 soft_cert_*.txt
 project/resources/mesh_raw/*.gz
 project/resources/mesh_raw/*.xml
+.draft_checkpoint.json
+.agents/skills/developing-with-streamlit
